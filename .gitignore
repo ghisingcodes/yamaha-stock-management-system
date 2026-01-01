@@ -1,0 +1,26 @@
+cat > .gitignore << 'END'
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+dist/
+build/
+coverage/
+
+# Angular / Frontend
+frontend/.angular/
+frontend/dist/
+frontend/.vscode/
+frontend/.env.local
+
+# NestJS / Backend
+backend/dist/
+backend/.env
+backend/coverage/
+backend/logs/
+
+# Databases / temp files
+*.log
+*.sqlite
+*.sqlite-journal
+END
