@@ -1,0 +1,18 @@
+<!-- src/app/components/header/header.component.html -->
+<header>
+  <div class="container">
+    <div class="logo">
+      <a routerLink="/">Yamaha Inventory</a>
+    </div>
+
+    <nav>
+      @if (!isLoggedIn()) {
+        <a routerLink="/">Bikes</a>
+        <a routerLink="/login">Login</a>
+      } @else if (isAdmin()) {
+        <a routerLink="/admin/bikes">Manage Bikes</a>
+        <button class="logout" (click)="logout()">Logout</button>
+      }
+    </nav>
+  </div>
+</header>

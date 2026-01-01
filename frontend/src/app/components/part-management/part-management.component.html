@@ -1,0 +1,106 @@
+<app-header></app-header>
+
+<div class="container">
+  <h1>Manage Parts</h1>
+
+  @if (errorMessage()) {
+    <div class="error-box">{{ errorMessage() }}</div>
+  }
+
+  <div class="form-section">
+    <h2>{{ isEditing() ? 'Edit Part' : 'Add New Part' }}</h2>
+
+    <form [formGroup]="form" (ngSubmit)="savePart()">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Name *</label>
+          <input formControlName="name">
+          @if (name?.invalid && name?.touched) {
+            <div class="error-text">
+              @if (name?.errors?.['required']) { Name is required }
+              @if (name?.errors?.['minlength']) { Name too short }
+            </div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label>Price ($) *</label>
+          <input type="number" step="0.01" formControlName="price">
+          @if (price?.invalid && price?.touched) {
+            <div class="error-text">
+              @if (price?.errors?.['required']) { Price is required }
+              @if (price?.errors?.['min']) { Price must be ≥ 0 }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Stock Quantity *</label>
+          <input type="number" formControlName="stockQuantity">
+          @if (stockQuantity?.invalid && stockQuantity?.touched) {
+            <div class="error-text">
+              @if (stockQuantity?.errors?.['required']) { Required }
+              @if (stockQuantity?.errors?.['min']) { Must be ≥ 0 }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Description</label>
+        <textarea formControlName="description" rows="3"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Compatible Bike IDs (comma separated)</label>
+        <input formControlName="compatibleBikesInput" placeholder="e.g. 64a..., 64b...">
+      </div>
+
+      <div class="actions">
+        <button type="submit" [disabled]="isLoading() || form.invalid">
+          {{ isLoading() ? 'Saving...' : (isEditing() ? 'Update' : 'Create') }}
+        </button>
+        @if (isEditing()) {
+          <button type="button" class="secondary" (click)="resetForm()">Cancel</button>
+        }
+      </div>
+    </form>
+  </div>
+
+  <!-- Table section remains the same as previous version -->
+  <div class="table-section">
+    @if (isLoading()) {
+      <div class="loading">Loading parts...</div>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Price</th>
+            <th>Stock</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (part of parts(); track part._id) {
+            <tr>
+              <td>{{ part.name }}</td>
+              <td>${{ part.price.toFixed(2) }}</td>
+              <td [class.low-stock]="part.stockQuantity < 5">
+                {{ part.stockQuantity }}
+              </td>
+              <td>
+                <button class="edit-btn" (click)="editPart(part)">Edit</button>
+                <button class="delete-btn" (click)="deletePart(part._id)">Delete</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="4" class="empty">No parts found</td></tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</div>

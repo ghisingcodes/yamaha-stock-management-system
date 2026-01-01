@@ -21,6 +21,4 @@ backend/logs/
 
 # Databases / temp files
 *.log
-*.sqlite
-*.sqlite-journal
 END

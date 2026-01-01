@@ -1,0 +1,38 @@
+<app-header></app-header>
+
+<div class="container">
+  <h1>Yamaha Motorcycles</h1>
+
+  <div class="bike-grid">
+    @for (bike of bikes(); track bike._id) {
+      <div class="bike-card">
+        <h2>{{ bike.name }}</h2>
+        <div class="meta">
+          @if (bike.model) { {{ bike.model }} • } {{ bike.year || 'N/A' }}
+        </div>
+        @if (bike.price) {
+          <div class="price">${{ bike.price.toLocaleString() }}</div>
+        }
+        <p>{{ bike.description }}</p>
+
+        @if (bike.parts?.length) {
+          <div class="parts">
+            <h3>Parts Stock</h3>
+            <ul>
+              @for (part of bike.parts; track part._id) {
+                <li>
+                  {{ part.name }} —
+                  <span [class.low-stock]="part.stockQuantity < 5">
+                    {{ part.stockQuantity }} in stock
+                  </span>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+      </div>
+    } @empty {
+      <p class="loading">Loading Yamaha bikes...</p>
+    }
+  </div>
+</div>
