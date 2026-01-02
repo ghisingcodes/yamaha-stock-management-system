@@ -20,7 +20,9 @@ export class Part {
 
   @Prop([{ type: Types.ObjectId, ref: 'Bike' }])
   compatibleBikes: Types.ObjectId[];
+
+  @Prop({ type: [String], default: [] })
+  photos: string[];
 }
 
 export const PartSchema = SchemaFactory.createForClass(Part);
-PartSchema.index({ name: 1 });

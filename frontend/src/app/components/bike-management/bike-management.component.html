@@ -1,85 +1,152 @@
 <app-header></app-header>
 
 <div class="container">
-  <h1>Manage Bikes</h1>
+  <h1>Bike Management</h1>
 
+  <!-- Error message -->
   @if (errorMessage()) {
-    <div class="error-box">{{ errorMessage() }}</div>
+    <div class="error-box" [@fadeIn]>
+      {{ errorMessage() }}
+    </div>
   }
 
-  <div class="form-section">
-    <h2>{{ editingId() ? 'Edit Bike' : 'Add New Bike' }}</h2>
+  <!-- Form Section -->
+  <div class="form-section" [@fadeIn]>
+    <h2>{{ isEditing() ? 'Edit Bike' : 'Add New Bike' }}</h2>
 
-    <form (ngSubmit)="saveBike()" #bikeForm="ngForm">
+    <form [formGroup]="form" (ngSubmit)="saveBike()">
+      <!-- Name & Model -->
       <div class="form-row">
         <div class="form-group">
           <label>Name *</label>
-          <input [(ngModel)]="formData().name" name="name" required>
+          <input formControlName="name" placeholder="e.g. MT-07">
+          @if (name?.invalid && name?.touched) {
+            <div class="error-text">
+              @if (name?.invalid && name?.touched) {
+                <div class="error-text">
+                  @if (name?.errors?.['required']) { Name is required }
+                  @if (name?.errors?.['minlength']) { Minimum 2 characters }
+                  @if (name?.errors?.['maxlength']) { Maximum 100 characters }
+                </div>
+              }
+            </div>
+          }
         </div>
+
         <div class="form-group">
           <label>Model</label>
-          <input [(ngModel)]="formData().model" name="model">
+          <input formControlName="model" placeholder="e.g. 2025">
         </div>
       </div>
 
+      <!-- Year & Price -->
       <div class="form-row">
         <div class="form-group">
           <label>Year</label>
-          <input type="number" [(ngModel)]="formData().year" name="year">
+          <input type="number" formControlName="year" placeholder="e.g. 2025">
+          @if (year?.invalid && year?.touched) {
+            <div class="error-text">
+              @if (year?.errors?.['min']) { Year too old }
+              @if (year?.errors?.['max']) { Invalid future year }
+            </div>
+          }
         </div>
+
         <div class="form-group">
           <label>Price ($)</label>
-          <input type="number" [(ngModel)]="formData().price" name="price">
+          <input type="number" step="0.01" formControlName="price" placeholder="e.g. 8499">
         </div>
       </div>
 
+      <!-- Description -->
       <div class="form-group">
         <label>Description</label>
-        <textarea [(ngModel)]="formData().description" name="description" rows="3"></textarea>
+        <textarea formControlName="description" rows="4" placeholder="Detailed description..."></textarea>
       </div>
 
+      <!-- Photo Upload -->
+      <app-photo-upload
+        [existingPhotos]="getExistingPhotos()"
+        (filesChange)="onPhotosSelected($event)">
+      </app-photo-upload>
+
+      <!-- Action Buttons -->
       <div class="actions">
-        <button type="submit" [disabled]="isLoading() || !bikeForm.valid">
-          {{ isLoading() ? 'Saving...' : (editingId() ? 'Update' : 'Create') }}
+        <button
+          type="submit"
+          [disabled]="isLoading() || form.invalid"
+          class="primary-btn">
+          {{ isLoading() ? 'Saving...' : (isEditing() ? 'Update Bike' : 'Create Bike') }}
         </button>
-        @if (editingId()) {
-          <button type="button" class="secondary" (click)="resetForm()">Cancel</button>
+
+        @if (isEditing()) {
+          <button
+            type="button"
+            class="secondary-btn"
+            (click)="resetForm()">
+            Cancel
+          </button>
         }
       </div>
     </form>
   </div>
 
-  <div class="table-section">
-    @if (isLoading()) {
-      <div class="loading">Loading bikes...</div>
-    } @else {
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Model</th>
-            <th>Year</th>
-            <th>Price</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (bike of bikes(); track bike._id) {
-            <tr>
-              <td>{{ bike.name }}</td>
-              <td>{{ bike.model || '-' }}</td>
-              <td>{{ bike.year || '-' }}</td>
-              <td>{{ bike.price ? '$' + bike.price.toLocaleString() : '-' }}</td>
-              <td>
-                <button class="edit-btn" (click)="editBike(bike)">Edit</button>
-                <button class="delete-btn" (click)="deleteBike(bike._id)">Delete</button>
-              </td>
-            </tr>
-          } @empty {
-            <tr><td colspan="5" class="empty">No bikes found</td></tr>
+  <!-- Table / Inventory List -->
+<div class="table-section">
+  <h2>Current Inventory</h2>
+
+  @if (isLoading()) {
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Loading bikes...</p>
+    </div>
+  } @else {
+    <table>
+      <thead>
+        <tr>
+          <th>Photo</th>
+          <th>Name</th>
+          <th>Model</th>
+          <th>Year</th>
+          <th>Price</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (bike of bikes(); track bike._id) {
+      <tr [@fadeIn]>
+        <td>
+          <!-- Safe photo display with fallback -->
+          @if (bike.photos && bike.photos.length > 0) {
+            <img
+              [src]="backendUrl + bike.photos[0]"
+              alt="{{ bike.name }} thumbnail"
+              class="thumbnail"
+              loading="lazy"
+              (error)="onImageError($event)"
+            />
+          } @else {
+            <span class="no-thumbnail">No photo</span>
           }
-        </tbody>
-      </table>
+        </td>
+        <td>{{ bike.name }}</td>
+        <td>{{ bike.model || '—' }}</td>
+        <td>{{ bike.year || '—' }}</td>
+        <td>{{ bike.price ? '$' + bike.price.toLocaleString() : '—' }}</td>
+        <td class="actions-column">
+          <button class="edit-btn" (click)="editBike(bike)">Edit</button>
+          <button class="delete-btn" (click)="deleteBike(bike._id)">Delete</button>
+        </td>
+      </tr>
+    } @empty {
+      <tr>
+        <td colspan="6" class="empty-row">
+          No bikes in inventory yet
+        </td>
+      </tr>
     }
-  </div>
+      </tbody>
+    </table>
+  }
+</div>
 </div>

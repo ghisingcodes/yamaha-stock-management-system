@@ -1,4 +1,3 @@
-// src/schemas/bike.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 
@@ -10,19 +9,23 @@ export class Bike {
   name: string;
 
   @Prop()
-  model?: string;
+  model: string;
 
   @Prop()
-  year?: number;
+  year: number;
 
   @Prop()
-  price?: number;
+  price: number;
 
   @Prop()
-  description?: string;
+  description: string;
+
+  @Prop([{ type: String, default: [] }]) // Array of photo URLs
+  photos: string[];
 
   @Prop([{ type: Types.ObjectId, ref: 'Part' }])
-  parts?: Types.ObjectId[];
+  parts: Types.ObjectId[];
 }
 
 export const BikeSchema = SchemaFactory.createForClass(Bike);
+BikeSchema.index({ name: 1 });

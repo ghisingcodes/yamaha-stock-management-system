@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { Bike } from '../schemas/bike.schema';
 import { CreateBikeDto } from './dto/create-bike.dto';
 import { UpdateBikeDto } from './dto/update-bike.dto';
@@ -9,50 +9,41 @@ import { UpdateBikeDto } from './dto/update-bike.dto';
 export class BikesService {
   constructor(@InjectModel('Bike') private bikeModel: Model<Bike>) {}
 
-  async create(createBikeDto: CreateBikeDto): Promise<Bike> {
-    // Convert string ids → ObjectId
-    const parts =
-      createBikeDto.parts?.map((id) => new Types.ObjectId(id)) || [];
-
-    const bike = new this.bikeModel({
-      ...createBikeDto,
-      parts,
-    });
-
+  async create(createBikeDto: CreateBikeDto & { photos?: string[] }) {
+    const bike = new this.bikeModel(createBikeDto);
     return bike.save();
   }
 
-  async findAll(): Promise<Bike[]> {
+  async findAll() {
     return this.bikeModel.find().populate('parts').exec();
   }
 
-  async findOne(id: string): Promise<Bike> {
-    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Invalid ID');
+  async findOne(id: string) {
     const bike = await this.bikeModel.findById(id).populate('parts').exec();
-    if (!bike) throw new NotFoundException(`Bike #${id} not found`);
+    if (!bike) throw new NotFoundException('Bike not found');
     return bike;
   }
 
-  async update(id: string, updateBikeDto: UpdateBikeDto): Promise<Bike> {
-    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Invalid ID');
+  async update(
+    id: string,
+    updateBikeDto: UpdateBikeDto & { photos?: string[] },
+  ) {
+    const bike = await this.bikeModel.findById(id);
+    if (!bike) throw new NotFoundException('Bike not found');
 
-    const parts = updateBikeDto.parts?.map((id) => new Types.ObjectId(id));
+    // Append new photos to existing ones
+    if (updateBikeDto.photos) {
+      bike.photos = [...(bike.photos || []), ...updateBikeDto.photos];
+      delete updateBikeDto.photos; // Remove from main update
+    }
 
-    const updated = await this.bikeModel
-      .findByIdAndUpdate(
-        id,
-        { $set: { ...updateBikeDto, ...(parts && { parts }) } },
-        { new: true, runValidators: true },
-      )
-      .exec();
-
-    if (!updated) throw new NotFoundException(`Bike #${id} not found`);
-    return updated;
+    Object.assign(bike, updateBikeDto);
+    return bike.save();
   }
 
-  async remove(id: string): Promise<void> {
-    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Invalid ID');
-    const result = await this.bikeModel.findByIdAndDelete(id).exec();
-    if (!result) throw new NotFoundException(`Bike #${id} not found`);
+  async remove(id: string) {
+    const bike = await this.bikeModel.findById(id);
+    if (!bike) throw new NotFoundException('Bike not found');
+    return bike.deleteOne();
   }
 }

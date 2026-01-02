@@ -1,16 +1,7 @@
-// src/bikes/dto/create-bike.dto.ts
-import {
-  IsString,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsArray,
-  IsMongoId,
-} from 'class-validator';
+import { IsString, IsOptional, IsNumber, Min } from 'class-validator';
 
 export class CreateBikeDto {
   @IsString()
-  @IsNotEmpty()
   name: string;
 
   @IsString()
@@ -19,18 +10,15 @@ export class CreateBikeDto {
 
   @IsNumber()
   @IsOptional()
+  @Min(1900)
   year?: number;
 
   @IsNumber()
   @IsOptional()
+  @Min(0)
   price?: number;
 
   @IsString()
   @IsOptional()
   description?: string;
-
-  @IsArray()
-  @IsMongoId({ each: true })
-  @IsOptional()
-  parts?: string[];
 }

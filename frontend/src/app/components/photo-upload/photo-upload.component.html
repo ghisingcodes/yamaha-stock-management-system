@@ -1,0 +1,24 @@
+<div class="photo-upload">
+  <label class="upload-label">
+    Upload Photos (multiple allowed)
+    <input type="file" multiple accept="image/*" (change)="onFilesSelected($event)" hidden />
+    <div class="upload-button">Choose Files</div>
+  </label>
+
+  <div class="preview-container" [@fadeIn]>
+    <!-- Existing photos from server -->
+    @for (photo of existingPhotos; track photo) {
+      <div class="preview-item existing">
+        <img [src]="photo" alt="existing photo" />
+      </div>
+    }
+
+    <!-- New preview photos -->
+    @for (preview of previews(); track $index) {
+      <div class="preview-item" [@fadeIn]>
+        <img [src]="preview" alt="preview" />
+        <button class="remove-btn" (click)="removePreview($index)">×</button>
+      </div>
+    }
+  </div>
+</div>

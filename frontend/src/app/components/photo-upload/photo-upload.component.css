@@ -1,0 +1,71 @@
+.photo-upload {
+  margin: 1.5rem 0;
+}
+
+.upload-label {
+  display: block;
+  cursor: pointer;
+}
+
+.upload-button {
+  display: inline-block;
+  padding: 0.7rem 1.2rem;
+  background: #003087;
+  color: white;
+  border-radius: 6px;
+  margin-top: 0.5rem;
+  transition: background 0.2s;
+}
+
+.upload-button:hover {
+  background: #001f5f;
+}
+
+.preview-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.preview-item {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+  transition: transform 0.25s ease;
+}
+
+.preview-item:hover {
+  transform: scale(1.06);
+}
+
+.preview-item img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0,0,0,0.75);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 18px;
+  cursor: pointer;
+  opacity: 0.9;
+  transition: opacity 0.2s;
+}
+
+.remove-btn:hover {
+  opacity: 1;
+}
+
+.existing {
+  border: 2px solid #ccc;
+}

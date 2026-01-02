@@ -1,38 +1,50 @@
 <app-header></app-header>
 
 <div class="container">
-  <h1>Yamaha Motorcycles</h1>
+  <h1>Yamaha Motorcycle Collection</h1>
 
-  <div class="bike-grid">
-    @for (bike of bikes(); track bike._id) {
-      <div class="bike-card">
-        <h2>{{ bike.name }}</h2>
-        <div class="meta">
-          @if (bike.model) { {{ bike.model }} • } {{ bike.year || 'N/A' }}
-        </div>
-        @if (bike.price) {
-          <div class="price">${{ bike.price.toLocaleString() }}</div>
-        }
-        <p>{{ bike.description }}</p>
-
-        @if (bike.parts?.length) {
-          <div class="parts">
-            <h3>Parts Stock</h3>
-            <ul>
-              @for (part of bike.parts; track part._id) {
-                <li>
-                  {{ part.name }} —
-                  <span [class.low-stock]="part.stockQuantity < 5">
-                    {{ part.stockQuantity }} in stock
-                  </span>
-                </li>
+  @if (isLoading()) {
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Loading bikes...</p>
+    </div>
+  } @else if (errorMessage()) {
+    <div class="error-message">{{ errorMessage() }}</div>
+  } @else {
+    <div class="bike-grid" [@fadeIn]>
+      @for (bike of bikes(); track bike._id) {
+        <div class="bike-card" [@fadeIn]>
+          <!-- Photo Gallery -->
+          <div class="photo-gallery">
+            @if (bike.photos?.length) {
+              @for (photo of bike.photos; track photo; let i = $index) {
+                <img
+                  [src]="backendUrl + photo"
+                  alt="{{bike.name}} photo"
+                  class="gallery-photo"
+                  [class.active]="i === 0"
+                />
               }
-            </ul>
+            } @else {
+              <div class="no-photo">No photos available</div>
+            }
           </div>
-        }
-      </div>
-    } @empty {
-      <p class="loading">Loading Yamaha bikes...</p>
-    }
-  </div>
+
+          <!-- Bike Info -->
+          <div class="bike-info">
+            <h2>{{ bike.name }}</h2>
+            <div class="meta">
+              {{ bike.model || '—' }} • {{ bike.year || 'N/A' }}
+            </div>
+            @if (bike.price) {
+              <div class="price">${{ bike.price.toLocaleString() }}</div>
+            }
+            <p class="description">{{ bike.description || 'No description available' }}</p>
+          </div>
+        </div>
+      } @empty {
+        <p class="no-results">No bikes found in the inventory</p>
+      }
+    </div>
+  }
 </div>
