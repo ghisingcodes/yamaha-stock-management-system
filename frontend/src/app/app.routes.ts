@@ -5,15 +5,19 @@ import { BikeManagementComponent } from './components/bike-management/bike-manag
 import { authGuard } from './guards/auth.guard';
 import { PartManagementComponent } from './components/part-management/part-management.component';
 import { TransactionLogComponent } from './components/transaction-log/transaction-log.component';
+import { UserManagementComponent } from './components/user-management.html/user-management.component';
+import { RegisterComponent } from './components/register/register.component';
 
 export const routes: Routes = [
   { path: '', component: BikeListComponent, title: 'Yamaha Bikes' },
+  { path: 'register', component: RegisterComponent},
   { path: 'login', component: LoginComponent, title: 'Login' },
   {
     path: 'admin',
     canActivate: [authGuard],
     children: [
       { path: '', redirectTo: 'bikes', pathMatch: 'full' },
+      { path: 'users', component: UserManagementComponent},
       { path: 'bikes', component: BikeManagementComponent, title: 'Manage Bikes' },
       { path: 'parts', component: PartManagementComponent },
       { path: 'transactions', component: TransactionLogComponent }

@@ -11,7 +11,7 @@ import { TransactionsModule } from './transactions/transaction.module';
     ConfigModule.forRoot({ isGlobal: true }),
     MongooseModule.forRootAsync({
       useFactory: (config: ConfigService) => ({
-        uri: config.get<string>('MONGODB_URI')!,
+        uri: config.get<string>('MONGODB_URI'),
       }),
       inject: [ConfigService],
     }),

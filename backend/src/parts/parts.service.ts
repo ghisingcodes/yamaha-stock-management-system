@@ -8,7 +8,7 @@ import { UpdatePartDto } from './dto/update-part.dto';
 
 @Injectable()
 export class PartsService {
-  constructor(@InjectModel('Part') private partModel: Model<Part>) {}
+  constructor(@InjectModel(Part.name) private partModel: Model<Part>) {}
 
   async create(createPartDto: CreatePartDto): Promise<Part> {
     const created = new this.partModel(createPartDto);

@@ -13,19 +13,23 @@ import {
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
-import { AuthGuard } from '../auth/auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 
 @Controller('transactions')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
 
   @Post()
   @Roles('admin')
   create(@Body() createTransactionDto: CreateTransactionDto, @Req() req) {
-    return this.transactionsService.create(createTransactionDto, req.user.userId);
+    return this.transactionsService.create(
+      createTransactionDto,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+      req.user.userId,
+    );
   }
 
   @Get()
@@ -42,7 +46,10 @@ export class TransactionsController {
 
   @Patch(':id')
   @Roles('admin')
-  update(@Param('id') id: string, @Body() updateTransactionDto: UpdateTransactionDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateTransactionDto: UpdateTransactionDto,
+  ) {
     return this.transactionsService.update(id, updateTransactionDto);
   }
 

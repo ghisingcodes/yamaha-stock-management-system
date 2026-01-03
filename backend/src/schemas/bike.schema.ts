@@ -28,4 +28,3 @@ export class Bike {
 }
 
 export const BikeSchema = SchemaFactory.createForClass(Bike);
-BikeSchema.index({ name: 1 });

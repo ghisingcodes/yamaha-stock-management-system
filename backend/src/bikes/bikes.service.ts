@@ -7,7 +7,7 @@ import { UpdateBikeDto } from './dto/update-bike.dto';
 
 @Injectable()
 export class BikesService {
-  constructor(@InjectModel('Bike') private bikeModel: Model<Bike>) {}
+  constructor(@InjectModel(Bike.name) private bikeModel: Model<Bike>) {}
 
   async create(createBikeDto: CreateBikeDto & { photos?: string[] }) {
     const bike = new this.bikeModel(createBikeDto);

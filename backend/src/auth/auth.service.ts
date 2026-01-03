@@ -3,6 +3,8 @@ import {
   Injectable,
   BadRequestException,
   UnauthorizedException,
+  ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -20,19 +22,16 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async register(dto: RegisterDto) {
-    const { username, password, role = 'user' } = dto;
+  async register(registerDto: RegisterDto): Promise<{ access_token: string }> {
+    const { username, password } = registerDto;
 
-    // Check if username already exists
-    const exists = await this.userModel.findOne({ username });
-    if (exists) {
-      throw new BadRequestException('Username already taken');
-    }
+    // Check if this is the VERY FIRST user
+    const userCount = await this.userModel.countDocuments();
 
-    // Hash password **only here**
+    const role = userCount === 0 ? 'admin' : 'user';
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user with already hashed password
     const user = await this.userModel.create({
       username,
       password: hashedPassword,
@@ -40,6 +39,56 @@ export class AuthService {
     });
 
     return this.generateToken(user);
+  }
+
+  async createUserByAdmin(
+    createUserDto: {
+      username: string;
+      password: string;
+      role?: 'user' | 'admin';
+    },
+    currentUserId: string,
+  ) {
+    const admin = await this.userModel.findById(currentUserId);
+    if (!admin || admin.role !== 'admin') {
+      throw new ForbiddenException(
+        'Only admins can create users or change roles',
+      );
+    }
+
+    const { username, password, role = 'user' } = createUserDto;
+
+    const exists = await this.userModel.findOne({ username });
+    if (exists) throw new BadRequestException('Username already exists');
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    const newUser = await this.userModel.create({
+      username,
+      password: hashed,
+      role,
+    });
+
+    return { message: 'User created successfully', userId: newUser._id };
+  }
+
+  async updateUserRole(
+    userId: string,
+    newRole: 'user' | 'admin',
+    currentUserId: string,
+  ) {
+    const admin = await this.userModel.findById(currentUserId);
+    if (!admin || admin.role !== 'admin') {
+      throw new ForbiddenException('Only admins can change roles');
+    }
+
+    const target = await this.userModel.findById(userId);
+    if (!target) throw new NotFoundException('User not found');
+
+    target.role = newRole;
+    await target.save();
+
+    return { message: `User role updated to ${newRole}` };
   }
 
   async login(dto: LoginDto) {

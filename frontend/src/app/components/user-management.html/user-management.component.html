@@ -1,0 +1,55 @@
+<app-header></app-header>
+
+<div class="container">
+  <h1>User Management (Admin Only)</h1>
+
+  @if (error()) {
+    <div class="error">{{ error() }}</div>
+  }
+
+  <!-- Create New User -->
+  <div class="create-section">
+    <h2>Create New User</h2>
+    <form [formGroup]="createForm" (ngSubmit)="createUser()">
+      <input formControlName="username" placeholder="Username" required>
+      <input type="password" formControlName="password" placeholder="Password" required>
+      <select formControlName="role">
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button type="submit" [disabled]="createForm.invalid || isLoading()">Create</button>
+    </form>
+  </div>
+
+  <!-- User List -->
+  <div class="table-section">
+    <h2>Existing Users</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (user of users(); track user._id) {
+          <tr>
+            <td>{{ user.username }}</td>
+            <td>{{ user.role | titlecase }}</td>
+            <td>
+              @if (user.role !== 'admin') {
+                <button class="make-admin" (click)="changeRole(user._id, 'admin')">Make Admin</button>
+              }
+              @if (user.role !== 'user') {
+                <button class="make-user" (click)="changeRole(user._id, 'user')">Make User</button>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="3">No users found</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

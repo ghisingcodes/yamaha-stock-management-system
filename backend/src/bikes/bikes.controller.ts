@@ -15,7 +15,7 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { AuthGuard } from '../auth/auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { BikesService } from './bikes.service';
@@ -37,7 +37,7 @@ export class BikesController {
   }
 
   @Post()
-  @UseGuards(AuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   @UseInterceptors(
     FilesInterceptor('photos', 10, {
@@ -94,7 +94,7 @@ export class BikesController {
 
   // Similar for PATCH (update)
   @Patch(':id')
-  @UseGuards(AuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   @UseInterceptors(
     FilesInterceptor('photos', 10, {
@@ -143,7 +143,7 @@ export class BikesController {
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   remove(@Param('id') id: string) {
     return this.bikesService.remove(id);

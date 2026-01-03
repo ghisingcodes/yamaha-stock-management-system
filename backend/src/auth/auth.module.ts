@@ -1,15 +1,17 @@
-// src/auth/auth.module.ts
-import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
-import { UserSchema } from '../schemas/user.schema';
-import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { RolesGuard } from './roles.guard';
+import { AuthService } from './auth.service';
+import { Module } from '@nestjs/common';
+import { UserSchema } from 'src/schemas/user.schema';
 
 @Module({
   imports: [
+    ConfigModule, // ← ADD THIS (load .env, ConfigService)
     MongooseModule.forFeature([{ name: 'User', schema: UserSchema }]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -23,14 +25,16 @@ import { JwtStrategy } from './jwt.strategy';
         return {
           secret,
           signOptions: {
-            expiresIn: (configService.get<string>('JWT_EXPIRES_IN') || '1h') as any,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            expiresIn: (configService.get<string>('JWT_EXPIRES_IN') ||
+              '1h') as any,
           },
-        } satisfies import('@nestjs/jwt').JwtModuleOptions;
+        };
       },
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  providers: [AuthService, JwtStrategy, JwtAuthGuard, RolesGuard], // ← JwtAuthGuard
+  exports: [AuthService, JwtModule, JwtAuthGuard, RolesGuard], // ← JwtAuthGuard
 })
 export class AuthModule {}

@@ -9,6 +9,6 @@ import { PartSchema } from '../schemas/part.schema';
   imports: [MongooseModule.forFeature([{ name: 'Part', schema: PartSchema }])],
   controllers: [PartsController],
   providers: [PartsService],
-  exports: [PartsService], // Export if needed for transactions
+  exports: [PartsService], // useful for TransactionsModule
 })
 export class PartsModule {}

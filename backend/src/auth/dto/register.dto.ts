@@ -1,11 +1,5 @@
 // src/auth/dto/register.dto.ts
-import {
-  IsString,
-  IsNotEmpty,
-  MinLength,
-  IsEnum,
-  IsOptional,
-} from 'class-validator';
+import { IsString, IsNotEmpty, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsString()
@@ -16,8 +10,4 @@ export class RegisterDto {
   @IsNotEmpty()
   @MinLength(6)
   password: string;
-
-  @IsEnum(['user', 'admin'])
-  @IsOptional()
-  role?: 'user' | 'admin';
 }
