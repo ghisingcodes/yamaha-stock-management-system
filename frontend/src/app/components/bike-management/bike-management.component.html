@@ -80,8 +80,21 @@
             </td>
 
             <td>
-              <button class="btn" (click)="openEditModal(bike)">Edit</button>
-              <button class="btn btn-danger" (click)="deleteBike(bike._id)">Delete</button>
+              <button
+                class="btn"
+                (click)="openEditModal(bike)"
+                [disabled]="isLoading()"
+              >
+                Edit
+              </button>
+
+              <button
+                class="btn btn-danger"
+                (click)="deleteBike(bike._id)"
+                [disabled]="isLoading()"
+              >
+                {{ isLoading() ? 'Deleting...' : 'Delete' }}
+              </button>
             </td>
           </tr>
         } @empty {

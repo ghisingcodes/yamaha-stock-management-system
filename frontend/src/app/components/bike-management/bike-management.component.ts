@@ -128,6 +128,29 @@ export class BikeManagementComponent {
     this.selectedIds.set(checked ? new Set(this.paginatedBikes.map(b => b._id!)) : new Set());
   }
 
+  deleteBike(id: string | undefined) {
+    if (!id) return;
+
+    if (!confirm(`Are you sure you want to delete bike "${this.bikes().find(b => b._id === id)?.name}"?`)) {
+      return;
+    }
+
+    this.isLoading.set(true);
+
+    this.http.delete(`${this.apiUrl}/${id}`).subscribe({
+      next: () => {
+        // Remove from local state immediately (optimistic update)
+        this.bikes.update(bikes => bikes.filter(b => b._id !== id));
+        this.applyFiltersAndSorting();
+      },
+      error: (err) => {
+        console.error('Delete failed:', err);
+        alert('Failed to delete bike: ' + (err.error?.message || 'Server error'));
+      },
+      complete: () => this.isLoading.set(false)
+    });
+  }
+
   bulkDelete() {
     const ids = Array.from(this.selectedIds());
     if (!ids.length) return;
@@ -228,10 +251,19 @@ export class BikeManagementComponent {
     const formData = new FormData();
     formData.append('name', bike.name);
     if (bike.model) formData.append('model', bike.model);
-    if (bike.year) formData.append('year', bike.year.toString());
-    if (bike.price) formData.append('price', bike.price.toString());
+    if (bike.year !== undefined && bike.year !== null) {
+      formData.append('year', bike.year.toString());
+    }
+
+    if (bike.price !== undefined && bike.price !== null) {
+      formData.append('price', bike.price.toString());
+    }
+
+    if (bike.stockQuantity !== undefined && bike.stockQuantity !== null) {
+      formData.append('stockQuantity', bike.stockQuantity.toString());
+    }
+
     if (bike.description) formData.append('description', bike.description);
-    if (bike.stockQuantity !== undefined) formData.append('stockQuantity', bike.stockQuantity.toString());
 
     // Preserve existing photos during edit
     if (this.modalMode() === 'edit' && bike.photos?.length) {

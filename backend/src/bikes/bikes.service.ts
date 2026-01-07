@@ -28,17 +28,15 @@ export interface BikeResponse {
 export class BikesService {
   constructor(@InjectModel('Bike') private bikeModel: Model<Bike>) {}
 
-  async create(
-    createBikeDto: CreateBikeDto,
-    photoUrls: string[] = [],
-  ): Promise<Bike> {
+  async create(createBikeDto: CreateBikeDto): Promise<Bike> {
     const bike = new this.bikeModel({
       ...createBikeDto,
-      photos: photoUrls,
+      photos: createBikeDto.photos || [],
       priceHistory: createBikeDto.price
         ? [{ price: createBikeDto.price, date: new Date() }]
         : [],
     });
+
     return bike.save();
   }
 
@@ -54,7 +52,9 @@ export class BikesService {
   }
 
   private toResponse(bike: Bike & Document): BikeResponse {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const plain = bike.toJSON(); // Use toJSON() - safer and recommended in Mongoose 8+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return {
       ...plain,
       availability: bike.stockQuantity > 0 ? 'In Stock' : 'Out of Stock',

@@ -36,9 +36,10 @@ export class BikesController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @UseInterceptors(
     FilesInterceptor('photos', 10, {
-      // 'photos' matches formData.append('photos')
       storage: diskStorage({
         destination: './uploads/bikes', // or use cloud storage
         filename: (req, file, callback) => {
@@ -56,36 +57,20 @@ export class BikesController {
     }),
   )
   async create(
-    @Body() body: any,
-    @UploadedFiles() photos: Express.Multer.File[],
+    @Body() createBikeDto: CreateBikeDto,
+    @UploadedFiles() files: Express.Multer.File[],
   ) {
-    console.log('Received body:', body);
-    console.log('Uploaded photos:', photos);
+    const uploaded = (files || []).map((f) => `/uploads/bikes/${f.filename}`);
+    createBikeDto.photos = uploaded;
 
-    const existingPhotos = body.existingPhotos
-      ? JSON.parse(body.existingPhotos)
-      : [];
-
-    const photoPaths = [
-      ...existingPhotos,
-      ...photos.map((file) => `/uploads/bikes/${file.filename}`),
-    ];
-
-    const bikeData = {
-      name: body.name,
-      model: body.model,
-      year: body.year ? Number(body.year) : undefined,
-      price: body.price ? Number(body.price) : undefined,
-      description: body.description,
-      stockQuantity: body.stockQuantity ? Number(body.stockQuantity) : 0,
-      photos: photoPaths,
-    };
-
-    return this.bikesService.create(bikeData);
+    console.log('Dto create', createBikeDto);
+    return this.bikesService.create(createBikeDto);
   }
 
   // Patch (edit) - similar to Post but with ID
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @UseInterceptors(
     FilesInterceptor('photos', 10, {
       storage: diskStorage({

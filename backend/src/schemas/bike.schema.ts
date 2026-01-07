@@ -20,7 +20,7 @@ export class Bike {
   @Prop()
   description: string;
 
-  @Prop([{ type: String, default: [] }]) // Array of photo URLs
+  @Prop([{ type: String, default: [] }])
   photos: string[];
 
   @Prop([{ type: Types.ObjectId, ref: 'Part' }])

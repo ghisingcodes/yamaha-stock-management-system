@@ -1,29 +1,38 @@
-import { IsString, IsOptional, IsNumber, Min } from 'class-validator';
+import { IsOptional, IsString, IsNumber, Min, IsArray } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateBikeDto {
   @IsString()
   name: string;
 
-  @IsString()
   @IsOptional()
+  @IsString()
   model?: string;
 
-  @IsNumber()
   @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
   @Min(1900)
   year?: number;
 
-  @IsNumber()
   @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
   @Min(0)
   price?: number;
 
-  @IsString()
   @IsOptional()
-  description?: string;
-
+  @Type(() => Number)
   @IsNumber()
-  @IsOptional()
   @Min(0)
   stockQuantity?: number;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  photos?: string[];
 }

@@ -1,15 +1,37 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateBikeDto } from './create-bike.dto';
-import { IsNumber, IsOptional, Min } from 'class-validator';
+import { IsOptional, IsNumber, Min, IsArray, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateBikeDto extends PartialType(CreateBikeDto) {
-  @IsNumber()
+  // Optional numeric fields
   @IsOptional()
-  @Min(0)
-  newPrice?: number; // Special field to trigger price history update
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1900)
+  year?: number;
 
-  @IsNumber()
   @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  price?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  newPrice?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
   @Min(0)
   stockQuantity?: number;
+
+  // Optional array of new photos
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  photos?: string[];
 }
