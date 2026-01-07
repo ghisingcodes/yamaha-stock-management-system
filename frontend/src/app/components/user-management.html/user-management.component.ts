@@ -16,7 +16,7 @@ interface User {
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, HeaderComponent],
   templateUrl: './user-management.component.html',
-  styleUrl: './user-management.component.css'
+  styleUrl: './user-management.component.css',
 })
 export class UserManagementComponent implements OnInit {
   private http = inject(HttpClient);

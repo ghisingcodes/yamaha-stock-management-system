@@ -25,6 +25,12 @@ export class Bike {
 
   @Prop([{ type: Types.ObjectId, ref: 'Part' }])
   parts: Types.ObjectId[];
+
+  @Prop({ default: 0, min: 0 })
+  stockQuantity: number;
+
+  @Prop([{ price: Number, date: Date }])
+  priceHistory: { price: number; date: Date }[];
 }
 
 export const BikeSchema = SchemaFactory.createForClass(Bike);

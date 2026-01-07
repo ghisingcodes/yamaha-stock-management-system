@@ -1,12 +1,11 @@
-// src/bikes/bikes.controller.ts
 import {
   Controller,
+  Get,
   Post,
   Body,
   Patch,
   Param,
   Delete,
-  Get,
   UseGuards,
   UseInterceptors,
   UploadedFiles,
@@ -15,131 +14,110 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { BikesService } from './bikes.service';
+import { BikesService, BikeResponse } from './bikes.service'; // ← Import BikeResponse here
 import { CreateBikeDto } from './dto/create-bike.dto';
 import { UpdateBikeDto } from './dto/update-bike.dto';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
 @Controller('bikes')
 export class BikesController {
   constructor(private readonly bikesService: BikesService) {}
 
   @Get()
-  findAll() {
+  findAll(): Promise<BikeResponse[]> {
     return this.bikesService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string): Promise<BikeResponse> {
     return this.bikesService.findOne(id);
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
   @UseInterceptors(
     FilesInterceptor('photos', 10, {
+      // 'photos' matches formData.append('photos')
       storage: diskStorage({
-        destination: './uploads/bikes',
+        destination: './uploads', // or use cloud storage
         filename: (req, file, callback) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname).toLowerCase();
-          callback(null, `bike-${uniqueSuffix}${ext}`);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          callback(null, `${uniqueSuffix}${extname(file.originalname)}`);
         },
       }),
       fileFilter: (req, file, callback) => {
-        const allowedTypes = /jpeg|jpg|png|webp/;
-        const ext = extname(file.originalname).toLowerCase();
-        if (!allowedTypes.test(ext)) {
-          return callback(
-            new BadRequestException(
-              'Only images (jpg, jpeg, png, webp) allowed',
-            ),
-            false,
-          );
+        if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
+          return callback(new Error('Only image files are allowed!'), false);
         }
         callback(null, true);
       },
-      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max per file
     }),
   )
   async create(
-    @Body() body: any, // ← use 'any' for raw multipart fields
-    @UploadedFiles() files: Express.Multer.File[],
+    @Body() body: any,
+    @UploadedFiles() photos: Express.Multer.File[],
   ) {
-    console.log('Raw body:', body);
-    console.log('Uploaded files count:', files?.length || 0);
+    console.log('Received body:', body);
+    console.log('Uploaded photos:', photos);
 
-    // Manually validate required fields (since DTO validation skips multipart)
-    if (!body.name) {
-      throw new BadRequestException('Name is required');
-    }
-
-    const photoUrls = files
-      ? files.map((file) => `/uploads/bikes/${file.filename}`)
+    const existingPhotos = body.existingPhotos
+      ? JSON.parse(body.existingPhotos)
       : [];
 
-    const createDto: CreateBikeDto = {
-      name: body.name,
-      model: body.model || undefined,
-      year: body.year ? Number(body.year) : undefined,
-      price: body.price ? Number(body.price) : undefined,
-      description: body.description || undefined,
-    };
+    const photoPaths = [
+      ...existingPhotos,
+      ...photos.map((file) => `/uploads/${file.filename}`),
+    ];
 
-    return this.bikesService.create({ ...createDto, photos: photoUrls });
-  }
-
-  // Similar for PATCH (update)
-  @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
-  @UseInterceptors(
-    FilesInterceptor('photos', 10, {
-      storage: diskStorage({
-        destination: './uploads/bikes',
-        filename: (req, file, callback) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname).toLowerCase();
-          callback(null, `bike-${uniqueSuffix}${ext}`);
-        },
-      }),
-      fileFilter: (req, file, callback) => {
-        const allowedTypes = /jpeg|jpg|png|webp/;
-        const ext = extname(file.originalname).toLowerCase();
-        if (!allowedTypes.test(ext)) {
-          return callback(
-            new BadRequestException(
-              'Only images (jpg, jpeg, png, webp) allowed',
-            ),
-            false,
-          );
-        }
-        callback(null, true);
-      },
-      limits: { fileSize: 5 * 1024 * 1024 },
-    }),
-  )
-  async update(
-    @Param('id') id: string,
-    @Body() body: any,
-    @UploadedFiles() files: Express.Multer.File[],
-  ) {
-    const photoUrls = files
-      ? files.map((file) => `/uploads/bikes/${file.filename}`)
-      : undefined;
-
-    const updateDto: UpdateBikeDto = {
+    const bikeData = {
       name: body.name,
       model: body.model,
       year: body.year ? Number(body.year) : undefined,
       price: body.price ? Number(body.price) : undefined,
       description: body.description,
+      stockQuantity: body.stockQuantity ? Number(body.stockQuantity) : 0,
+      photos: photoPaths,
     };
 
-    return this.bikesService.update(id, { ...updateDto, photos: photoUrls });
+    return this.bikesService.create(bikeData);
+  }
+
+  // Patch (edit) - similar to Post but with ID
+  @Patch(':id')
+  @UseInterceptors(
+    FilesInterceptor('photos', 10, {
+      /* same config as above */
+    }),
+  )
+  async update(
+    @Param('id') id: string,
+    @Body() body: any,
+    @UploadedFiles() photos: Express.Multer.File[],
+  ) {
+    const existingPhotos = body.existingPhotos
+      ? JSON.parse(body.existingPhotos)
+      : [];
+
+    const photoPaths = [
+      ...existingPhotos,
+      ...photos.map((file) => `/uploads/${file.filename}`),
+    ];
+
+    const updateData = {
+      name: body.name,
+      model: body.model,
+      year: body.year ? Number(body.year) : undefined,
+      price: body.price ? Number(body.price) : undefined,
+      description: body.description,
+      stockQuantity: body.stockQuantity
+        ? Number(body.stockQuantity)
+        : undefined,
+      photos: photoPaths,
+    };
+
+    return this.bikesService.update(id, updateData);
   }
 
   @Delete(':id')

@@ -1,6 +1,6 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common'; // ← FIXED for *ngIf
 import { environment } from '../../../environments/environment';
 import { HeaderComponent } from '../header/header.component';
 import { animate, style, transition, trigger } from '@angular/animations';
@@ -10,9 +10,12 @@ interface Bike {
   name: string;
   model?: string;
   year?: number;
-  price?: number;
+  price: number;
   description?: string;
-  photos?: string[]; // array of image URLs from backend
+  photos?: string[];
+  stockQuantity: number; // ← FIXED
+  availability?: string;
+  priceHistory?: { price: number; date: Date }[];
 }
 
 @Component({
@@ -33,7 +36,6 @@ interface Bike {
 export class BikeListComponent implements OnInit {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl}/bikes`;
-  readonly backendUrl = environment.apiUrl;
 
   bikes = signal<Bike[]>([]);
   isLoading = signal(true);
@@ -53,7 +55,7 @@ export class BikeListComponent implements OnInit {
         this.isLoading.set(false);
       },
       error: () => {
-        this.errorMessage.set('Failed to load bikes. Please try again later.');
+        this.errorMessage.set('Failed to load bikes');
         this.isLoading.set(false);
       }
     });

@@ -21,4 +21,9 @@ export class CreateBikeDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  stockQuantity?: number;
 }

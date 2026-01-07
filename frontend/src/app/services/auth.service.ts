@@ -44,8 +44,8 @@ export class AuthService {
     );
   }
 
-  register(username: string, password: string, role: 'user' | 'admin' = 'user') {
-    return this.http.post<AuthResponse>(`${this.apiUrl}/register`, { username, password, role });
+  register(username: string, password: string) {
+    return this.http.post<AuthResponse>(`${this.apiUrl}/auth/register`, { username, password });
   }
 
   logout() {

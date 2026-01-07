@@ -1,198 +1,288 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
+import { Component, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { HeaderComponent } from '../header/header.component';
-import { PhotoUploadComponent } from '../photo-upload/photo-upload.component';
-import { animate, style, transition, trigger } from '@angular/animations';
 
 interface Bike {
-  _id: string;
+  _id?: string;
   name: string;
   model?: string;
   year?: number;
   price?: number;
   description?: string;
-  photos?: string[];
+  photos?: string[];           // stored paths from backend
+  stockQuantity?: number;
+  selected?: boolean;
 }
 
 @Component({
   selector: 'app-bike-management',
   standalone: true,
-  imports: [
-    ReactiveFormsModule,
-    CommonModule,
-    HeaderComponent,
-    PhotoUploadComponent
-  ],
+  imports: [CommonModule, FormsModule, HeaderComponent],
   templateUrl: './bike-management.component.html',
-  styleUrls: ['./bike-management.component.css'],
-  animations: [
-    trigger('fadeIn', [
-      transition(':enter', [
-        style({ opacity: 0, transform: 'translateY(20px)' }),
-        animate('400ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
-      ])
-    ])
-  ]
+  styleUrl: './bike-management.component.css'
 })
-export class BikeManagementComponent implements OnInit {
+export class BikeManagementComponent {
   private http = inject(HttpClient);
-  private fb = inject(FormBuilder);
-
   private apiUrl = `${environment.apiUrl}/bikes`;
-  readonly backendUrl = environment.apiUrl;
 
-  // State signals
+  // Data
   bikes = signal<Bike[]>([]);
-  form: FormGroup;
-  isEditing = signal(false);
-  editingId = signal<string | null>(null);
+  filteredBikes = signal<Bike[]>([]);
+  searchTerm = signal<string>('');
+
+  // Pagination & Sorting
+  page = signal(1);
+  pageSize = signal(10);
+  sortColumn = signal<keyof Bike>('name');
+  sortDirection = signal<'asc' | 'desc'>('asc');
+  selectedIds = signal<Set<string>>(new Set());
+
+  // Modals & State
+  showAddEditModal = signal(false);
+  showDetailModal = signal(false);
+  showQuickPreview = signal(false);
+  modalMode = signal<'add' | 'edit'>('add');
+  currentBike = signal<Partial<Bike>>({ name: '', photos: [] });
+  previewBike = signal<Bike | null>(null);
+
+  // Photo handling
+  selectedFiles = signal<File[]>([]);
+  photoPreviews = signal<string[]>([]);
+
+  // Loading & Errors
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
-  selectedPhotos = signal<File[]>([]);
+
+  // Hover timer
+  private hoverTimer: any = null;
+
+  // Stats
+  totalBikes = computed(() => this.filteredBikes().length);
+  totalValue = computed(() => this.filteredBikes().reduce((sum, b) => sum + (b.price || 0), 0));
+  lowStockCount = computed(() => this.filteredBikes().filter(b => (b.stockQuantity || 0) < 5).length);
 
   constructor() {
-    // Initialize reactive form with validators
-    this.form = this.fb.group({
-      name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
-      model: ['', [Validators.maxLength(50)]],
-      year: [null, [Validators.min(1900), Validators.max(new Date().getFullYear() + 1)]],
-      price: [null, [Validators.min(0)]],
-      description: ['', [Validators.maxLength(1000)]]
-    });
+    effect(() => this.loadBikes());
+    effect(() => this.applyFiltersAndSorting());
   }
 
-  ngOnInit(): void {
-    this.loadBikes();
-  }
-
-  // ── Load all bikes ────────────────────────────────────────────────────────
-  loadBikes(): void {
+  loadBikes() {
     this.isLoading.set(true);
-    this.errorMessage.set(null);
-
     this.http.get<Bike[]>(this.apiUrl).subscribe({
       next: (data) => {
-        this.bikes.set(data);
+        this.bikes.set(data.map(b => ({ ...b, selected: false })));
+        this.applyFiltersAndSorting();
         this.isLoading.set(false);
       },
       error: () => {
-        this.errorMessage.set('Failed to load bikes. Please try again later.');
+        this.errorMessage.set('Failed to load bikes');
         this.isLoading.set(false);
       }
     });
   }
 
-    onImageError(event: Event): void {
-    const img = event.target as HTMLImageElement;
-    img.src = '/assets/no-photo.jpg'; // Place a default image in src/assets
-    img.onerror = null; // Prevent infinite loop if fallback also fails
-  }
+  applyFiltersAndSorting() {
+    let result = [...this.bikes()];
+    const term = this.searchTerm().toLowerCase().trim();
 
-  getExistingPhotos(): string[] {
-    if(!this.isEditing() || !this.editingId()){
-      return []
+    if (term) {
+      result = result.filter(b =>
+        b.name.toLowerCase().includes(term) ||
+        (b.model?.toLowerCase().includes(term) ?? false) ||
+        (b.description?.toLowerCase().includes(term) ?? false)
+      );
     }
 
-    const currentBike = this.bikes().find(b=> b._id === this.editingId());
-    return currentBike?.photos || []
+    result.sort((a, b) => {
+      const aVal = a[this.sortColumn()] ?? '';
+      const bVal = b[this.sortColumn()] ?? '';
+      return this.sortDirection() === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+    });
+
+    this.filteredBikes.set(result);
   }
 
-  onPhotosSelected(files: File[]): void {
-    this.selectedPhotos.set(files);
+  get paginatedBikes() {
+    const start = (this.page() - 1) * this.pageSize();
+    return this.filteredBikes().slice(start, start + this.pageSize());
   }
 
-  saveBike(): void {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
+  totalPages = computed(() => Math.ceil(this.filteredBikes().length / this.pageSize()));
+
+  sortBy(column: keyof Bike) {
+    if (this.sortColumn() === column) {
+      this.sortDirection.update(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      this.sortColumn.set(column);
+      this.sortDirection.set('asc');
+    }
+    this.applyFiltersAndSorting();
+  }
+
+  // Selection
+  toggleSelectAll(event: Event) {
+    const checked = (event.target as HTMLInputElement).checked;
+    this.selectedIds.set(checked ? new Set(this.paginatedBikes.map(b => b._id!)) : new Set());
+  }
+
+  bulkDelete() {
+    const ids = Array.from(this.selectedIds());
+    if (!ids.length) return;
+
+    if (!confirm(`Delete ${ids.length} selected bike(s)? This cannot be undone.`)) {
       return;
     }
 
     this.isLoading.set(true);
-    this.errorMessage.set(null);
 
-    const formData = new FormData();
+    // Delete one by one (simple & safe)
+    const deletePromises = ids.map(id =>
+      this.http.delete(`${this.apiUrl}/${id}`).toPromise()
+    );
 
-    // Append ONLY non-empty form fields as strings
-    const formValue = this.form.value;
-    if (formValue.name) formData.append('name', formValue.name);
-    if (formValue.model) formData.append('model', formValue.model);
-    if (formValue.year) formData.append('year', formValue.year.toString());
-    if (formValue.price) formData.append('price', formValue.price.toString());
-    if (formValue.description) formData.append('description', formValue.description);
-
-    // Append photos (key point: multiple files with SAME field name 'photos')
-    this.selectedPhotos().forEach(file => {
-      formData.append('photos', file); // Backend expects 'photos' field
-    });
-
-    console.log('Sending FormData:'); // Debug
-    for (let pair of formData.entries()) {
-      console.log(pair[0], pair[1]);
-    }
-
-    const request = this.editingId()
-      ? this.http.patch(`${this.apiUrl}/${this.editingId()}`, formData)
-      : this.http.post(this.apiUrl, formData);
-
-    request.subscribe({
-      next: (response) => {
-        console.log('Success:', response);
-        this.resetForm();
+    Promise.all(deletePromises)
+      .then(() => {
+        this.selectedIds.set(new Set());
         this.loadBikes();
-      },
-      error: (err) => {
-        console.error('Full error:', err);
-        this.errorMessage.set(err.error?.message || `HTTP ${err.status}: ${err.statusText}`);
-        this.isLoading.set(false);
-      }
+      })
+      .catch(err => {
+        console.error('Bulk delete failed:', err);
+        alert('Some deletes failed. Please try again.');
+      })
+      .finally(() => this.isLoading.set(false));
+  }
+
+  toggleSelect(id: string) {
+    const set = new Set(this.selectedIds());
+    set.has(id) ? set.delete(id) : set.add(id);
+    this.selectedIds.set(set);
+  }
+
+  openAddModal() {
+    console.log('Opening ADD modal'); // ← debug
+    this.currentBike.set({ name: '', model: '', year: undefined, price: undefined, description: '', photos: [], stockQuantity: 0 });
+    this.selectedFiles.set([]);
+    this.photoPreviews.set([]);
+    this.modalMode.set('add');
+    this.showAddEditModal.set(true);
+  }
+
+  openEditModal(bike: Bike) {
+    console.log('Opening EDIT modal for bike:', bike._id); // ← debug
+    this.currentBike.set({ ...bike });
+    this.selectedFiles.set([]);
+    this.photoPreviews.set(bike.photos?.map(p => `${environment.apiUrl}${p}`) || []);
+    this.modalMode.set('edit');
+    this.showAddEditModal.set(true);
+  }
+
+  openDetailModal(bike: Bike) {
+    this.currentBike.set({ ...bike });
+    this.showDetailModal.set(true);
+  }
+
+  closeModals() {
+    this.showAddEditModal.set(false);
+    this.showDetailModal.set(false);
+    this.showQuickPreview.set(false);
+    this.currentBike.set({});
+    this.previewBike.set(null);
+    this.selectedFiles.set([]);
+    this.photoPreviews.set([]);
+  }
+
+  // Photo Upload
+  onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+
+    const files = Array.from(input.files);
+    this.selectedFiles.update(existing => [...existing, ...files]);
+
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => this.photoPreviews.update(prev => [...prev, reader.result as string]);
+      reader.readAsDataURL(file);
     });
   }
 
-  // ── Edit existing bike ───────────────────────────────────────────────────
-  editBike(bike: Bike): void {
-    this.form.patchValue({
-      name: bike.name,
-      model: bike.model || '',
-      year: bike.year || null,
-      price: bike.price || null,
-      description: bike.description || ''
-    });
-
-    this.editingId.set(bike._id);
-    this.isEditing.set(true);
-    this.selectedPhotos.set([]); // Reset new photo uploads
+  removePreview(index: number) {
+    this.photoPreviews.update(prev => prev.filter((_, i) => i !== index));
+    this.selectedFiles.update(prev => prev.filter((_, i) => i !== index));
   }
 
-  // ── Delete bike ──────────────────────────────────────────────────────────
-  deleteBike(id: string): void {
-    if (!confirm('Are you sure you want to permanently delete this bike?')) {
-      return;
+  // Save Bike (with photos)
+// In saveBike()
+saveBike() {
+  const bike = this.currentBike();
+  if (!bike.name) {
+    alert('Name is required');
+    return;
+  }
+
+  this.isLoading.set(true);
+
+  const formData = new FormData();
+  formData.append('name', bike.name);
+  if (bike.model) formData.append('model', bike.model);
+  if (bike.year) formData.append('year', bike.year.toString());
+  if (bike.price) formData.append('price', bike.price.toString());
+  if (bike.description) formData.append('description', bike.description);
+  if (bike.stockQuantity !== undefined) formData.append('stockQuantity', bike.stockQuantity.toString());
+
+  // Preserve existing photos during edit
+  if (this.modalMode() === 'edit' && bike.photos?.length) {
+    formData.append('existingPhotos', JSON.stringify(bike.photos));
+  }
+
+  // Add new photos
+  this.selectedFiles().forEach(file => {
+    formData.append('photos', file, file.name);  // ← add filename
+  });
+
+  const url = this.modalMode() === 'add' ? this.apiUrl : `${this.apiUrl}/${bike._id}`;
+  const method = this.modalMode() === 'add' ? 'post' : 'patch';
+
+  this.http[method](url, formData).subscribe({
+    next: (res) => {
+      console.log('Save success:', res);
+      this.closeModals();
+      this.loadBikes();
+    },
+    error: (err) => {
+      console.error('Save failed:', err);
+      alert('Save failed: ' + (err.error?.message || 'Unknown error'));
+    },
+    complete: () => this.isLoading.set(false)
+  });
+}
+
+  startHoverPreview(bike: Bike) {
+    if (this.hoverTimer) clearTimeout(this.hoverTimer);
+    this.hoverTimer = setTimeout(() => {
+      this.previewBike.set(bike);
+      this.showQuickPreview.set(true);
+    }, 2000);
+  }
+
+  cancelHoverPreview() {
+    if (this.hoverTimer) {
+      clearTimeout(this.hoverTimer);
+      this.hoverTimer = null;
     }
-
-    this.isLoading.set(true);
-
-    this.http.delete(`${this.apiUrl}/${id}`).subscribe({
-      next: () => this.loadBikes(),
-      error: () => {
-        this.errorMessage.set('Failed to delete bike');
-        this.isLoading.set(false);
-      }
-    });
+    this.showQuickPreview.set(false);
+    this.previewBike.set(null);
   }
 
-  // ── Reset form to initial state ──────────────────────────────────────────
-  resetForm(): void {
-    this.form.reset();
-    this.editingId.set(null);
-    this.isEditing.set(false);
-    this.selectedPhotos.set([]);
+  getFirstPhoto(bike: Bike | Partial<Bike> | null | undefined): string {
+    if (!bike || !bike.photos || bike.photos.length === 0) {
+      return '/assets/no-photo.jpg'; // Make sure this file exists in assets
+    }
+    const first = bike.photos[0];
+    // Ensure path is correct (backend should serve /uploads/...)
+    return first.startsWith('http') ? first : `${environment.apiUrl}${first}`;
   }
-
-  // Form control getters for template validation messages
-  get name() { return this.form.get('name'); }
-  get year() { return this.form.get('year'); }
-  get price() { return this.form.get('price'); }
 }

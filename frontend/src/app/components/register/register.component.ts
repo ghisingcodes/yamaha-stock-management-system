@@ -30,16 +30,10 @@ export class RegisterComponent {
     this.loading.set(true);
     this.error.set(null);
 
-    // Explicitly take only what the backend expects
-    const payload = {
-      username: this.form.get('username')!.value!,
-      password: this.form.get('password')!.value!
-    };
+    const { username, password } = this.form.value;
 
-    this.authService.register(payload).subscribe({
-      next: () => {
-        this.router.navigate(['/login']);
-      },
+    this.authService.register(username!, password!).subscribe({ // ← FIXED: pass both
+      next: () => this.router.navigate(['/login']),
       error: (err) => {
         this.error.set(err.error?.message || 'Registration failed');
         this.loading.set(false);

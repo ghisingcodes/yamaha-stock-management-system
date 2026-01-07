@@ -1,152 +1,211 @@
 <app-header></app-header>
 
-<div class="container">
+<div class="container glass">
   <h1>Bike Management</h1>
 
-  <!-- Error message -->
-  @if (errorMessage()) {
-    <div class="error-box" [@fadeIn]>
-      {{ errorMessage() }}
+  <!-- Top Controls + Stats -->
+  <div class="top-bar">
+    <div class="stats">
+      <div class="stat glass">
+        Total Bikes: <strong>{{ totalBikes }}</strong>
+      </div>
+      <div class="stat glass">
+        Total Value: <strong>${{ totalValue.toLocaleString() }}</strong>
+      </div>
+      <div class="stat glass warning" [class.active]="lowStockCount() > 0">
+        Low Stock: <strong>{{ lowStockCount }}</strong>
+      </div>
+    </div>
+
+    <div class="controls">
+      <input
+        type="text"
+        placeholder="Search by name, model..."
+        [value]="searchTerm()"
+        (input)="searchTerm.set($event.target.value); applyFiltersAndSorting()"
+        class="search input-glass"
+      />
+      <button class="btn" (click)="openAddModal()">+ Add Bike</button>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrapper glass">
+    <div class="bulk-actions glass" [class.visible]="selectedIds().size > 0">
+      <span>{{ selectedIds().size }} selected</span>
+      <button class="btn btn-danger" (click)="bulkDelete()">Delete Selected</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th><input type="checkbox" (change)="toggleSelectAll($event)" /></th>
+          <th (click)="sortBy('name')">Name</th>
+          <th>Photo</th>
+          <th (click)="sortBy('model')">Model</th>
+          <th (click)="sortBy('year')">Year</th>
+          <th (click)="sortBy('price')">Price</th>
+          <th>Stock</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        @for (bike of paginatedBikes; track bike._id) {
+          <tr>
+            <td>
+              <input type="checkbox" [checked]="selectedIds().has(bike._id)" (change)="toggleSelect(bike._id)" />
+            </td>
+
+            <td class="name-cell">
+              <span
+                class="bike-name"
+                (click)="openDetailModal(bike)"
+                (mouseenter)="startHoverPreview(bike)"
+                (mouseleave)="cancelHoverPreview()">
+                {{ bike.name }}
+              </span>
+            </td>
+
+            <td class="photo-cell">
+              @if (previewBike(); as bike) {
+                <img [src]="getFirstPhoto(bike)" />
+              }
+            </td>
+
+            <td>{{ bike.model || '—' }}</td>
+            <td>{{ bike.year || '—' }}</td>
+            <td>{{ bike.price ? '$' + bike.price.toLocaleString() : '—' }}</td>
+
+            <td [class.low-stock]="(bike.stockQuantity || 0) < 5">
+              {{ bike.stockQuantity ?? '—' }}
+            </td>
+
+            <td>
+              <button class="btn" (click)="openEditModal(bike)">Edit</button>
+              <button class="btn btn-danger" (click)="deleteBike(bike._id)">Delete</button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="8" class="empty">No bikes found</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <div class="pagination">
+      <button class="btn" [disabled]="page() === 1" (click)="page.set(page() - 1)">Previous</button>
+      <span>Page {{ page() }} of {{ totalPages() }}</span>
+      <button class="btn" [disabled]="page() >= totalPages()" (click)="page.set(page() + 1)">Next</button>
+    </div>
+  </div>
+
+  <!-- Quick Preview Tooltip -->
+  @if (showQuickPreview() && previewBike()) {
+    <div class="quick-preview glass">
+      @if (previewBike(); as bike) {
+        <img [src]="getFirstPhoto(bike)" />
+      }
+      <div class="preview-info">
+        <strong>{{ previewBike()?.name || 'Bike' }}</strong>
+        <p>Model: {{ previewBike()?.model || '—' }}</p>
+        <p>Price: {{ previewBike()?.price ? '$' + previewBike()?.price?.toLocaleString() : '—' }}</p>
+      </div>
     </div>
   }
+</div>
 
-  <!-- Form Section -->
-  <div class="form-section" [@fadeIn]>
-    <h2>{{ isEditing() ? 'Edit Bike' : 'Add New Bike' }}</h2>
+<!-- Add/Edit Modal -->
+@if (showAddEditModal()) {
+  <div class="modal" (click)="closeModals()">
+    <div class="modal-box glass" (click)="$event.stopPropagation()">
+      <h2>{{ modalMode() === 'add' ? 'Add New Bike' : 'Edit Bike' }}</h2>
 
-    <form [formGroup]="form" (ngSubmit)="saveBike()">
-      <!-- Name & Model -->
-      <div class="form-row">
+      <form (ngSubmit)="saveBike()" #bikeForm="ngForm">
         <div class="form-group">
           <label>Name *</label>
-          <input formControlName="name" placeholder="e.g. MT-07">
-          @if (name?.invalid && name?.touched) {
-            <div class="error-text">
-              @if (name?.invalid && name?.touched) {
-                <div class="error-text">
-                  @if (name?.errors?.['required']) { Name is required }
-                  @if (name?.errors?.['minlength']) { Minimum 2 characters }
-                  @if (name?.errors?.['maxlength']) { Maximum 100 characters }
-                </div>
-              }
-            </div>
-          }
+          <input class="input-glass" type="text" [(ngModel)]="currentBike().name" name="name" required />
         </div>
 
         <div class="form-group">
           <label>Model</label>
-          <input formControlName="model" placeholder="e.g. 2025">
+          <input class="input-glass" type="text" [(ngModel)]="currentBike().model" name="model" />
         </div>
-      </div>
 
-      <!-- Year & Price -->
-      <div class="form-row">
         <div class="form-group">
           <label>Year</label>
-          <input type="number" formControlName="year" placeholder="e.g. 2025">
-          @if (year?.invalid && year?.touched) {
-            <div class="error-text">
-              @if (year?.errors?.['min']) { Year too old }
-              @if (year?.errors?.['max']) { Invalid future year }
-            </div>
-          }
+          <input class="input-glass" type="number" [(ngModel)]="currentBike().year" name="year" />
         </div>
 
         <div class="form-group">
           <label>Price ($)</label>
-          <input type="number" step="0.01" formControlName="price" placeholder="e.g. 8499">
+          <input class="input-glass" type="number" [(ngModel)]="currentBike().price" name="price" />
         </div>
-      </div>
 
-      <!-- Description -->
-      <div class="form-group">
-        <label>Description</label>
-        <textarea formControlName="description" rows="4" placeholder="Detailed description..."></textarea>
-      </div>
+        <div class="form-group">
+          <label>Stock Quantity</label>
+          <input class="input-glass" type="number" [(ngModel)]="currentBike().stockQuantity" name="stockQuantity" min="0" />
+        </div>
 
-      <!-- Photo Upload -->
-      <app-photo-upload
-        [existingPhotos]="getExistingPhotos()"
-        (filesChange)="onPhotosSelected($event)">
-      </app-photo-upload>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea class="input-glass" [(ngModel)]="currentBike().description" name="description" rows="4"></textarea>
+        </div>
 
-      <!-- Action Buttons -->
-      <div class="actions">
-        <button
-          type="submit"
-          [disabled]="isLoading() || form.invalid"
-          class="primary-btn">
-          {{ isLoading() ? 'Saving...' : (isEditing() ? 'Update Bike' : 'Create Bike') }}
-        </button>
+        <div class="form-group">
+          <label>Photos</label>
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            (change)="onFileSelected($event)"
+            class="file-input"
+          />
+          <div class="photo-preview-grid">
+            @for (preview of photoPreviews(); track $index) {
+              <div class="photo-preview">
+                <img [src]="preview" alt="Preview" />
+                <button type="button" class="remove-photo" (click)="removePreview($index)">×</button>
+              </div>
+            }
+          </div>
+          <small>Upload multiple images (jpg, png, max 10)</small>
+        </div>
 
-        @if (isEditing()) {
-          <button
-            type="button"
-            class="secondary-btn"
-            (click)="resetForm()">
-            Cancel
-          </button>
+        <div class="modal-actions">
+          <button type="button" class="btn" (click)="closeModals()">Cancel</button>
+          <button type="submit" class="btn">Save Bike</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- Details Modal -->
+@if (showDetailModal()) {
+  <div class="modal" (click)="closeModals()">
+    <div class="modal-box glass detail-box" (click)="$event.stopPropagation()">
+      <h2>{{ currentBike().name }}</h2>
+
+      <div class="detail-photos">
+        @for (photo of currentBike().photos || []; track $index) {
+          <img [src]="environment.apiUrl + photo" />
+        } @empty {
+          <div class="no-photos">No photos uploaded</div>
         }
       </div>
-    </form>
-  </div>
 
-  <!-- Table / Inventory List -->
-<div class="table-section">
-  <h2>Current Inventory</h2>
+      <div class="detail-info">
+        <p><strong>Model:</strong> {{ currentBike().model || '—' }}</p>
+        <p><strong>Year:</strong> {{ currentBike().year || '—' }}</p>
+        <p><strong>Price:</strong> {{ currentBike().price ? '$' + currentBike().price?.toLocaleString() : '—' }}</p>
+        <p><strong>Stock:</strong> {{ currentBike().stockQuantity ?? '—' }}</p>
+        <p><strong>Description:</strong> {{ currentBike().description || 'No description' }}</p>
+      </div>
 
-  @if (isLoading()) {
-    <div class="loading">
-      <div class="spinner"></div>
-      <p>Loading bikes...</p>
+      <button class="btn" (click)="closeModals()">Close</button>
     </div>
-  } @else {
-    <table>
-      <thead>
-        <tr>
-          <th>Photo</th>
-          <th>Name</th>
-          <th>Model</th>
-          <th>Year</th>
-          <th>Price</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (bike of bikes(); track bike._id) {
-      <tr [@fadeIn]>
-        <td>
-          <!-- Safe photo display with fallback -->
-          @if (bike.photos && bike.photos.length > 0) {
-            <img
-              [src]="backendUrl + bike.photos[0]"
-              alt="{{ bike.name }} thumbnail"
-              class="thumbnail"
-              loading="lazy"
-              (error)="onImageError($event)"
-            />
-          } @else {
-            <span class="no-thumbnail">No photo</span>
-          }
-        </td>
-        <td>{{ bike.name }}</td>
-        <td>{{ bike.model || '—' }}</td>
-        <td>{{ bike.year || '—' }}</td>
-        <td>{{ bike.price ? '$' + bike.price.toLocaleString() : '—' }}</td>
-        <td class="actions-column">
-          <button class="edit-btn" (click)="editBike(bike)">Edit</button>
-          <button class="delete-btn" (click)="deleteBike(bike._id)">Delete</button>
-        </td>
-      </tr>
-    } @empty {
-      <tr>
-        <td colspan="6" class="empty-row">
-          No bikes in inventory yet
-        </td>
-      </tr>
-    }
-      </tbody>
-    </table>
-  }
-</div>
-</div>
+  </div>
+}

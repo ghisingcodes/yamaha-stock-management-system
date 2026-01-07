@@ -19,10 +19,11 @@
             @if (bike.photos?.length) {
               @for (photo of bike.photos; track photo; let i = $index) {
                 <img
-                  [src]="backendUrl + photo"
-                  alt="{{bike.name}} photo"
-                  class="gallery-photo"
+                  [src]="photo"
+                  alt="{{bike.name}} - photo {{i+1}}"
                   [class.active]="i === 0"
+                  class="gallery-photo"
+                  loading="lazy"
                 />
               }
             } @else {
@@ -36,10 +37,23 @@
             <div class="meta">
               {{ bike.model || '—' }} • {{ bike.year || 'N/A' }}
             </div>
-            @if (bike.price) {
-              <div class="price">${{ bike.price.toLocaleString() }}</div>
-            }
+            <div class="price">${{ bike.price.toLocaleString() }}</div>
+            <div class="availability" [class.in-stock]="bike.stockQuantity > 0">
+              {{ bike.stockQuantity > 0 ? 'In Stock' : 'Out of Stock' }}
+              ({{ bike.stockQuantity }} units)
+            </div>
             <p class="description">{{ bike.description || 'No description available' }}</p>
+
+            @if (bike.priceHistory?.length) {
+              <div class="price-history">
+                <h3>Price History</h3>
+                <ul>
+                  @for (entry of bike.priceHistory; track entry.date) {
+                    <li>{{ entry.date | date:'shortDate' }}: ${{ entry.price.toLocaleString() }}</li>
+                  }
+                </ul>
+              </div>
+            }
           </div>
         </div>
       } @empty {
