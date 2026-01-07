@@ -214,51 +214,51 @@ export class BikeManagementComponent {
     this.selectedFiles.update(prev => prev.filter((_, i) => i !== index));
   }
 
-  // Save Bike (with photos)
-// In saveBike()
-saveBike() {
-  const bike = this.currentBike();
-  if (!bike.name) {
-    alert('Name is required');
-    return;
+
+  // In saveBike()
+  saveBike() {
+    const bike = this.currentBike();
+    if (!bike.name) {
+      alert('Name is required');
+      return;
+    }
+
+    this.isLoading.set(true);
+
+    const formData = new FormData();
+    formData.append('name', bike.name);
+    if (bike.model) formData.append('model', bike.model);
+    if (bike.year) formData.append('year', bike.year.toString());
+    if (bike.price) formData.append('price', bike.price.toString());
+    if (bike.description) formData.append('description', bike.description);
+    if (bike.stockQuantity !== undefined) formData.append('stockQuantity', bike.stockQuantity.toString());
+
+    // Preserve existing photos during edit
+    if (this.modalMode() === 'edit' && bike.photos?.length) {
+      formData.append('existingPhotos', JSON.stringify(bike.photos));
+    }
+
+    // Add new photos
+    this.selectedFiles().forEach(file => {
+      formData.append('photos', file, file.name);  // ← add filename
+    });
+
+    const url = this.modalMode() === 'add' ? this.apiUrl : `${this.apiUrl}/${bike._id}`;
+    const method = this.modalMode() === 'add' ? 'post' : 'patch';
+
+    this.http[method](url, formData).subscribe({
+      next: (res) => {
+        console.log('Save success:', res);
+        this.closeModals();
+        this.loadBikes();
+      },
+      error: (err) => {
+        console.error('Save failed:', err);
+        alert('Save failed: ' + (err.error?.message || 'Unknown error'));
+      },
+      complete: () => this.isLoading.set(false)
+    });
   }
-
-  this.isLoading.set(true);
-
-  const formData = new FormData();
-  formData.append('name', bike.name);
-  if (bike.model) formData.append('model', bike.model);
-  if (bike.year) formData.append('year', bike.year.toString());
-  if (bike.price) formData.append('price', bike.price.toString());
-  if (bike.description) formData.append('description', bike.description);
-  if (bike.stockQuantity !== undefined) formData.append('stockQuantity', bike.stockQuantity.toString());
-
-  // Preserve existing photos during edit
-  if (this.modalMode() === 'edit' && bike.photos?.length) {
-    formData.append('existingPhotos', JSON.stringify(bike.photos));
-  }
-
-  // Add new photos
-  this.selectedFiles().forEach(file => {
-    formData.append('photos', file, file.name);  // ← add filename
-  });
-
-  const url = this.modalMode() === 'add' ? this.apiUrl : `${this.apiUrl}/${bike._id}`;
-  const method = this.modalMode() === 'add' ? 'post' : 'patch';
-
-  this.http[method](url, formData).subscribe({
-    next: (res) => {
-      console.log('Save success:', res);
-      this.closeModals();
-      this.loadBikes();
-    },
-    error: (err) => {
-      console.error('Save failed:', err);
-      alert('Save failed: ' + (err.error?.message || 'Unknown error'));
-    },
-    complete: () => this.isLoading.set(false)
-  });
-}
 
   startHoverPreview(bike: Bike) {
     if (this.hoverTimer) clearTimeout(this.hoverTimer);
@@ -277,12 +277,44 @@ saveBike() {
     this.previewBike.set(null);
   }
 
-  getFirstPhoto(bike: Bike | Partial<Bike> | null | undefined): string {
-    if (!bike || !bike.photos || bike.photos.length === 0) {
-      return '/assets/no-photo.jpg'; // Make sure this file exists in assets
+  // In your component
+  handleImageError(event: Event) {
+    const img = event.target as HTMLImageElement;
+    img.src = '/assets/no-photo.jpg';
+  }
+
+  getPhotoUrl(photoPath: string): string {
+    if (!photoPath) return '/assets/no-photo.jpg';
+
+    if (photoPath.startsWith('http')) {
+      return photoPath;
     }
-    const first = bike.photos[0];
-    // Ensure path is correct (backend should serve /uploads/...)
-    return first.startsWith('http') ? first : `${environment.apiUrl}${first}`;
+
+    const normalized = photoPath.startsWith('/') ? photoPath : `/${photoPath}`;
+    const base = environment.apiUrl.replace(/\/$/, '');
+
+    return `${base}${normalized}`;
+  }
+
+  getFirstPhoto(bike: Bike | null | undefined): string {
+    if (!bike?.photos?.length) {
+      return '/assets/no-photo.jpg';
+    }
+
+    const firstPhoto = bike.photos[0];
+
+    // Case 1: already full URL (not recommended but handle it)
+    if (firstPhoto.startsWith('http')) {
+      return firstPhoto;
+    }
+
+    // Case 2: starts with /uploads/ → perfect
+    // Case 3: doesn't start with / → add it
+    const path = firstPhoto.startsWith('/') ? firstPhoto : `/${firstPhoto}`;
+
+    // Remove trailing slash from apiUrl and add path
+    const base = environment.apiUrl.replace(/\/$/, '');
+
+    return `${base}${path}`;
   }
 }

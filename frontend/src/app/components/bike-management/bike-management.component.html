@@ -68,9 +68,7 @@
             </td>
 
             <td class="photo-cell">
-              @if (previewBike(); as bike) {
-                <img [src]="getFirstPhoto(bike)" />
-              }
+              <img [src]="getFirstPhoto(bike)" />
             </td>
 
             <td>{{ bike.model || '—' }}</td>
@@ -191,7 +189,7 @@
 
       <div class="detail-photos">
         @for (photo of currentBike().photos || []; track $index) {
-          <img [src]="environment.apiUrl + photo" />
+          <img [src]="getPhotoUrl(photo)" alt="Bike photo" />
         } @empty {
           <div class="no-photos">No photos uploaded</div>
         }

@@ -40,7 +40,7 @@ export class BikesController {
     FilesInterceptor('photos', 10, {
       // 'photos' matches formData.append('photos')
       storage: diskStorage({
-        destination: './uploads', // or use cloud storage
+        destination: './uploads/bikes', // or use cloud storage
         filename: (req, file, callback) => {
           const uniqueSuffix =
             Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -68,7 +68,7 @@ export class BikesController {
 
     const photoPaths = [
       ...existingPhotos,
-      ...photos.map((file) => `/uploads/${file.filename}`),
+      ...photos.map((file) => `/uploads/bikes/${file.filename}`),
     ];
 
     const bikeData = {
@@ -88,7 +88,20 @@ export class BikesController {
   @Patch(':id')
   @UseInterceptors(
     FilesInterceptor('photos', 10, {
-      /* same config as above */
+      storage: diskStorage({
+        destination: './uploads/bikes', // or use cloud storage
+        filename: (req, file, callback) => {
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          callback(null, `${uniqueSuffix}${extname(file.originalname)}`);
+        },
+      }),
+      fileFilter: (req, file, callback) => {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
+          return callback(new Error('Only image files are allowed!'), false);
+        }
+        callback(null, true);
+      },
     }),
   )
   async update(
@@ -102,7 +115,7 @@ export class BikesController {
 
     const photoPaths = [
       ...existingPhotos,
-      ...photos.map((file) => `/uploads/${file.filename}`),
+      ...photos.map((file) => `/uploads/bikes/${file.filename}`),
     ];
 
     const updateData = {
